@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian Kimia Kelas XI - Terproteksi</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Font Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Layar Konfirmasi & Petunjuk -->
+    <div id="start-screen" class="card">
+        <div class="icon">🧪</div>
+        <h1>Ujian Kimia Kelas XI</h1>
+        <p class="subtitle">Sistem Ujian Terproteksi</p>
+        
+        <div class="instructions">
+            <h3>📌 Aturan & Petunjuk Ujian:</h3>
+            <ul>
+                <li>Ujian berlangsung dalam mode **Layar Penuh (Fullscreen)**.</li>
+                <li>Dilarang **berpindah tab**, membuka aplikasi lain, atau meminimalkan browser.</li>
+                <li>Fitur Klik Kanan, *Copy-Paste*, dan Shortcut Keyboard telah dinonaktifkan.</li>
+                <li>Peringatan kecurangan akan dicatat jika Anda mencoba berpindah halaman!</li>
+            </ul>
+        </div>
+
+        <button id="start-btn" onclick="startExam()">Mulai Ujian Sekarang</button>
+    </div>
+
+    <!-- Container Ujian (Google Form embedded) -->
+    <div id="exam-container" class="hidden">
+        <header class="exam-header">
+            <div class="header-title">🧪 Ujian Kimia Kelas XI</div>
+            <div id="warning-counter">Peringatan Keluar Tab: 0</div>
+        </header>
+
+        <iframe 
+            id="form-iframe" 
+            src="https://docs.google.com/forms/d/e/1FAIpQLScjpoTk3PH5goRdZEWu_0F07gBQWvjBqVGeNJ8xRWmAZEzaRw/viewform?embedded=true" 
+            frameborder="0" 
+            marginheight="0" 
+            marginwidth="0">
+            Memuat ujian...
+        </iframe>
+    </div>
+
+    <script>
+        let warningCount = 0;
+        let examStarted = false;
+
+        function startExam() {
+            const elem = document.documentElement;
+            
+            // Aktifkan Fullscreen
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('exam-container').classList.remove('hidden');
+            examStarted = true;
+        }
+
+        // Proteksi 1: Deteksi Pindah Tab / Kehilangan Fokus Window
+        window.addEventListener('blur', function() {
+            if (examStarted) {
+                warningCount++;
+                document.getElementById('warning-counter').innerText = `Peringatan Keluar Tab: ${warningCount}`;
+                alert(`⚠️ PERINGATAN (${warningCount})!\nAnda terdeteksi meninggalkan halaman ujian. Aktivitas ini dicatat.`);
+            }
+        });
+
+        // Proteksi 2: Matikan Klik Kanan
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Proteksi 3: Matikan Shortcut Keyboard (F12, Ctrl+C, Ctrl+V, Ctrl+U, dll)
+        document.addEventListener('keydown', function(e) {
+            if (
+                e.key === 'F12' || 
+                (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'u' || e.key === 's' || e.key === 'a' || e.key === 'p')) ||
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))
+            ) {
+                e.preventDefault();
+                alert('Fungsi keyboard ini dinonaktifkan demi keamanan ujian.');
+            }
+        });
+
+        // Proteksi 4: Peringatan saat mencoba menutup/refresh tab
+        window.addEventListener('beforeunload', function (e) {
+            if (examStarted) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>
