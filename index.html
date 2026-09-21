@@ -14,15 +14,16 @@
     <div id="start-screen" class="card">
         <div class="icon">🧪</div>
         <h1>Ujian Kimia Kelas XI</h1>
-        <p class="subtitle">Sistem Ujian Terproteksi</p>
+        <p class="subtitle">Sistem Ujian Terproteksi & Terkunci</p>
         
         <div class="instructions">
             <h3>📌 Aturan & Petunjuk Ujian:</h3>
             <ul>
                 <li>Ujian berlangsung dalam mode **Layar Penuh (Fullscreen)**.</li>
-                <li>Dilarang **berpindah tab**, membuka aplikasi lain, atau meminimalkan browser.</li>
-                <li>Fitur Klik Kanan, *Copy-Paste*, dan Shortcut Keyboard telah dinonaktifkan.</li>
-                <li>Peringatan kecurangan akan dicatat jika Anda mencoba berpindah halaman!</li>
+                <li>Dilarang berpindah tab atau membuka aplikasi lain.</li>
+                <li>Batas pelanggaran keluar tab adalah **3 kali**. Jika melanggar, **perangkat akan terkunci**!</li>
+                <li>Fitur Klik Kanan, *Copy-Paste*, dan Shortcut Keyboard dinonaktifkan.</li>
+                <li>Untuk keluar dari ujian, diperlukan **Token Pengawas**.</li>
             </ul>
         </div>
 
@@ -33,7 +34,10 @@
     <div id="exam-container" class="hidden">
         <header class="exam-header">
             <div class="header-title">🧪 Ujian Kimia Kelas XI</div>
-            <div id="warning-counter">Peringatan Keluar Tab: 0</div>
+            <div class="header-right">
+                <div id="warning-counter">Pelanggaran: 0/3</div>
+                <button id="exit-btn" onclick="requestExitToken()">Selesai / Keluar</button>
+            </div>
         </header>
 
         <iframe 
@@ -46,9 +50,29 @@
         </iframe>
     </div>
 
+    <!-- Modal Terkunci (Perangkat Terkunci) -->
+    <div id="lock-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🔒 PERANGKAT TERKUNCI</h2>
+            <p>Anda telah melanggar batas keluar tab sebanyak 3 kali. Hubungi pengawas untuk membuka kuncian perangkat Anda.</p>
+            <input type="password" id="unlock-token-input" placeholder="Masukkan Token Pengawas">
+            <button onclick="unlockDevice()">Buka Kunci</button>
+            <p id="lock-error-msg" class="error-msg"></p>
+        </div>
+    </div>
+
+    <!-- Footer Catatan Kaki -->
+    <footer class="footer-credit">Fatranoho</footer>
+
     <script>
+        const VALID_TOKEN = "SUMATIFKIMXI";
+        const MAX_WARNINGS = 3;
+        const MAX_TOKEN_ATTEMPTS = 3;
+
         let warningCount = 0;
+        let tokenAttempts = 0;
         let examStarted = false;
+        let isLocked = false;
 
         function startExam() {
             const elem = document.documentElement;
@@ -56,9 +80,9 @@
             // Aktifkan Fullscreen
             if (elem.requestFullscreen) {
                 elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) { /* Safari */
+            } else if (elem.webkitRequestFullscreen) {
                 elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { /* IE11 */
+            } else if (elem.msRequestFullscreen) {
                 elem.msRequestFullscreen();
             }
 
@@ -67,21 +91,79 @@
             examStarted = true;
         }
 
-        // Proteksi 1: Deteksi Pindah Tab / Kehilangan Fokus Window
+        // Proteksi 1: Deteksi Pindah Tab & Kunci Perangkat jika 3 kali melanggar
         window.addEventListener('blur', function() {
-            if (examStarted) {
+            if (examStarted && !isLocked) {
                 warningCount++;
-                document.getElementById('warning-counter').innerText = `Peringatan Keluar Tab: ${warningCount}`;
-                alert(`⚠️ PERINGATAN (${warningCount})!\nAnda terdeteksi meninggalkan halaman ujian. Aktivitas ini dicatat.`);
+                document.getElementById('warning-counter').innerText = `Pelanggaran: ${warningCount}/${MAX_WARNINGS}`;
+                
+                if (warningCount >= MAX_WARNINGS) {
+                    lockDeviceScreen();
+                } else {
+                    alert(`⚠️ PERINGATAN (${warningCount}/${MAX_WARNINGS})!\nAnda terdeteksi meninggalkan halaman ujian. Jika mencapai ${MAX_WARNINGS} kali, perangkat Anda akan TERKUNCI!`);
+                }
             }
         });
 
-        // Proteksi 2: Matikan Klik Kanan
+        // Kunci Perangkat
+        function lockDeviceScreen() {
+            isLocked = true;
+            document.getElementById('lock-modal').classList.remove('hidden');
+        }
+
+        // Buka Kunci Perangkat oleh Pengawas
+        function unlockDevice() {
+            const inputToken = document.getElementById('unlock-token-input').value;
+            const errorElement = document.getElementById('lock-error-msg');
+
+            if (inputToken === VALID_TOKEN) {
+                isLocked = false;
+                warningCount = 0;
+                document.getElementById('warning-counter').innerText = `Pelanggaran: 0/${MAX_WARNINGS}`;
+                document.getElementById('unlock-token-input').value = '';
+                errorElement.innerText = '';
+                document.getElementById('lock-modal').classList.add('hidden');
+                alert('Kunci berhasil dibuka oleh Pengawas. Silakan lanjutkan ujian.');
+            } else {
+                errorElement.innerText = 'Token Pengawas Salah!';
+            }
+        }
+
+        // Proteksi Keluar Soal (Meminta Token dengan Batasan 3x Percobaan)
+        function requestExitToken() {
+            if (tokenAttempts >= MAX_TOKEN_ATTEMPTS) {
+                alert('Kesempatan memasukkan token telah habis! Silakan hubungi pengawas secara langsung.');
+                return;
+            }
+
+            const userToken = prompt(`Masukkan Token Pengawas untuk keluar dari ujian:\n(Sisa percobaan: ${MAX_TOKEN_ATTEMPTS - tokenAttempts})`);
+
+            if (userToken === null) return; // Batal klik
+
+            if (userToken === VALID_TOKEN) {
+                alert('Token benar. Ujian selesai!');
+                examStarted = false;
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+                location.reload(); // Reset halaman
+            } else {
+                tokenAttempts++;
+                const remaining = MAX_TOKEN_ATTEMPTS - tokenAttempts;
+                if (remaining > 0) {
+                    alert(`Token Salah! Sisa percobaan: ${remaining}`);
+                } else {
+                    alert('Token Salah! Kesempatan Anda telah habis (3/3).');
+                }
+            }
+        }
+
+        // Proteksi Klik Kanan
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
         });
 
-        // Proteksi 3: Matikan Shortcut Keyboard (F12, Ctrl+C, Ctrl+V, Ctrl+U, dll)
+        // Proteksi Shortcut Keyboard
         document.addEventListener('keydown', function(e) {
             if (
                 e.key === 'F12' || 
@@ -93,7 +175,7 @@
             }
         });
 
-        // Proteksi 4: Peringatan saat mencoba menutup/refresh tab
+        // Peringatan saat mencoba refresh/menutup tab
         window.addEventListener('beforeunload', function (e) {
             if (examStarted) {
                 e.preventDefault();
